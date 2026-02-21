@@ -106,28 +106,32 @@ def install():
 
 
     print("=== Final setup ===")
-    enable_services = " && ".join([f"systemctl enable {s}" for s in services])
-    
+
     chroot_commands = [
-        f'echo "en_US.UTF-8 UTF-8" > /etc/locale.gen',
-        f'echo "ru_RU.UTF-8 UTF-8" >> /etc/locale.gen',
-        f'locale-gen',
-        f'echo "LANG=ru_RU.UTF-8" > /etc/locale.conf',
-        f'ln -sf /usr/share/zoneinfo/Europe/Moscow /etc/localtime',
-        f'echo "Sosaltix" > /etc/hostname',
-        f'passwd root',
-        f'"{root_password}"',
-        f'useradd -m -G wheel -s /bin/bash {username}',
-        f'passwd "{username}',
-        f'"{user_password}"',
-        f'echo "%wheel ALL=(ALL) ALL" > /etc/sudoers.d/wheel',
-        f'grub-install "{drive}" --bootloader-id=Sosaltix',
-        f'grub-mkconfig -o /boot/grub/grub.cfg',
-        enable_services
+        f"echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen",
+        f"echo 'ru_RU.UTF-8 UTF-8' >> /etc/locale.gen",
+        f"locale-gen",
+        f"echo 'LANG=ru_RU.UTF-8' > /etc/locale.conf",
+        f"ln -sf /usr/share/zoneinfo/Europe/Moscow /etc/localtime",
+        f"echo 'Sosaltix' > /etc/hostname",
+        f"echo 'root:{root_password}' | chpasswd",
+        f"useradd -m -G wheel -s /bin/bash {username}",
+        f"echo '{username}:{user_password}' | chpasswd",
+        f"echo '%wheel ALL=(ALL) ALL' > /etc/sudoers.d/wheel",
+        f"grub-install {drive} --bootloader-id=Sosaltix",
+        f"grub-mkconfig -o /boot/grub/grub.cfg",
     ]
     
-    chroot_cmd = " && ".join(chroot_commands)
-    run(f'arch-chroot /mnt /bin/bash -c "{chroot_cmd}"')
+    for service in services:
+        chroot_commands.append(f"systemctl enable {service}")
+    
+    for cmd in chroot_commands:
+        print(f"Executing: {cmd}")
+        run(f'arch-chroot /mnt /bin/bash -c "{cmd}"')
+
+    print(f"\n[COMPLETE] Sosaltix installed. User: {username}")
+    print("You can now reboot into your new system.")
+    print("\nTo reboot, run: umount -R /mnt && reboot")
 
     print(f"\n[COMPLETE] Sosaltix installed. User: {username}")
     print("You can now reboot into your new system.")
