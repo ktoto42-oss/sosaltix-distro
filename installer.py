@@ -115,11 +115,13 @@ def install():
         f'echo "LANG=ru_RU.UTF-8" > /etc/locale.conf',
         f'ln -sf /usr/share/zoneinfo/Europe/Moscow /etc/localtime',
         f'echo "Sosaltix" > /etc/hostname',
-        f'echo "root:{root_password}" | chpasswd',
+        f'passwd root',
+        f'"{root_password}"',
         f'useradd -m -G wheel -s /bin/bash {username}',
-        f'echo "{username}:{user_password}" | chpasswd',
+        f'passwd "{username}',
+        f'"{user_password}"',
         f'echo "%wheel ALL=(ALL) ALL" > /etc/sudoers.d/wheel',
-        f'grub-install --bootloader-id=Sosaltix',
+        f'grub-install "{drive}" --bootloader-id=Sosaltix',
         f'grub-mkconfig -o /boot/grub/grub.cfg',
         enable_services
     ]
