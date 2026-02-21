@@ -4,6 +4,7 @@ import getpass
 import subprocess
 
 base_packages = [
+    "linux",
     "base",
     "base-devel",
     "linux-firmware",
@@ -80,8 +81,8 @@ def install():
     run(f"mkfs.ext4 -F {p2} > /dev/null")
 
     run(f"mount {p2} /mnt")
-    os.makedirs("/mnt/boot", exist_ok=True)
-    run(f"mount {p1} /mnt/boot")
+    os.makedirs("/mnt/boot/efi", exist_ok=True)
+    run(f"mount {p1} /mnt/boot/efi")
 
     print("=== Installation packages === ")
     all_pkgs = " ".join(base_packages + kde_packages)
@@ -118,7 +119,7 @@ def install():
         f'useradd -m -G wheel -s /bin/bash {username}',
         f'echo "{username}:{user_password}" | chpasswd',
         f'echo "%wheel ALL=(ALL) ALL" > /etc/sudoers.d/wheel',
-        f'grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Sosaltix',
+        f'grub-install --bootloader-id=Sosaltix',
         f'grub-mkconfig -o /boot/grub/grub.cfg',
         enable_services
     ]
