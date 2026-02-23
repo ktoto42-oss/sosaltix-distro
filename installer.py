@@ -63,6 +63,7 @@ def install_with_retry(packages, target_dir):
 
 def install():
     print("=== Installation Sosaltix Linux ===")
+    run(f"lsblk")
     drive = input("Installation disk (example /dev/sda): ")
     username = input("User name: ")
     user_password = getpass.getpass("User password: ")
