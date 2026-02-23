@@ -2,6 +2,7 @@ import os
 import sys
 import getpass
 import subprocess
+import time
 
 base_packages = [
     "linux",
@@ -19,7 +20,7 @@ base_packages = [
 ]
 
 kde_packages = [
-    "plasma-login-manager",
+    "sddm",
     "plasma-desktop",
     "plasma-pa",
     "plasma-nm",
@@ -29,15 +30,17 @@ kde_packages = [
     "firefox"
 ]
 
-services = ["NetworkManager", "plasma-login-manager"]
+services = ["NetworkManager", "sddm"]
 
-def run(command):
+def run(command, ignore_errors=False):
     try:
         subprocess.check_call(command, shell=True)
-    except subprocess.CalledProcessError:
-        print(f"\n[!] Error: {command}")
+        return True
+    except subprocess.CalledProcessError as e:
+        if not ignore_errors:
+            print(f"\n[!] Error: {command}")
+            print(f"Error: {e}")
         return False
-    return True
 
 def install_with_retry(packages, target_dir):
     max_retries = 3
@@ -50,7 +53,7 @@ def install_with_retry(packages, target_dir):
             time.sleep(3)
         
         print(f"Installing packages (attempt {retry_count + 1}/{max_retries})...")
-        success = run(f"pacstrap -K {target_dir} {all_pkgs}", ignore_errors=True)
+        success = run(f"pacstrap -K {target_dir} {all_pkgs}")
         
         if success:
             print("Packages installed successfully!")
@@ -75,70 +78,159 @@ def install():
     run(f"parted -s {drive} set 1 esp on")
     run(f"parted -s {drive} mkpart primary ext4 513MiB 100%")
 
-    p1 = f"{drive}p1" if "nvme" in drive else f"{drive}1"
-    p2 = f"{drive}p2" if "nvme" in drive else f"{drive}2"
+    p1 = f"{drive}p1" if "nvme" in drive or "mmcblk" in drive else f"{drive}1"
+    p2 = f"{drive}p2" if "nvme" in drive or "mmcblk" in drive else f"{drive}2"
 
-    run(f"mkfs.vfat -F32 {p1} > /dev/null")
-    run(f"mkfs.ext4 -F {p2} > /dev/null")
+    run(f"mkfs.vfat -F32 {p1}")
+    run(f"mkfs.ext4 -F {p2}")
 
     run(f"mount {p2} /mnt")
     os.makedirs("/mnt/boot/efi", exist_ok=True)
     run(f"mount {p1} /mnt/boot/efi")
 
     print("=== Installation packages === ")
-    all_pkgs = " ".join(base_packages + kde_packages)
+    all_pkgs = base_packages + kde_packages
 
-    while True:
-        success = run(f"pacstrap -K /mnt {all_pkgs}")
-        
-        if success:
-            print("Packages installed successfully!")
-            break
-        else:
-            print("\n[!] Package installation failed.")
-            choice = input("Press 'r' to retry or any other key to abort: ").lower()
-            if choice != 'r':
-                print("Installation aborted by user.")
-                run("umount -R /mnt", ignore_errors=True)
-                sys.exit(1)
-            print("\nRetrying installation...\n")
+    if not install_with_retry(all_pkgs, "/mnt"):
+        print("\n[!] Package installation failed after maximum retries.")
+        run("umount -R /mnt", ignore_errors=True)
+        sys.exit(1)
     
     run("genfstab -U /mnt >> /mnt/etc/fstab")
 
-
-    print("=== Final setup ===")
-
+    print("=== Final setup with Sosaltix branding ===")
+    
+    # Основные команды настройки
     chroot_commands = [
+        # Локализация
         f"echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen",
         f"echo 'ru_RU.UTF-8 UTF-8' >> /etc/locale.gen",
         f"locale-gen",
         f"echo 'LANG=ru_RU.UTF-8' > /etc/locale.conf",
+        
+        # Время и хост
         f"ln -sf /usr/share/zoneinfo/Europe/Moscow /etc/localtime",
         f"echo 'Sosaltix' > /etc/hostname",
+        
+        # Пароли и пользователи
         f"echo 'root:{root_password}' | chpasswd",
         f"useradd -m -G wheel -s /bin/bash {username}",
         f"echo '{username}:{user_password}' | chpasswd",
         f"echo '%wheel ALL=(ALL) ALL' > /etc/sudoers.d/wheel",
+        
+        # Grub
         f"grub-install {drive} --bootloader-id=Sosaltix",
         f"grub-mkconfig -o /boot/grub/grub.cfg",
     ]
     
+    # Дополнительные команды для ребрендинга
+    branding_commands = [
+        # Изменение названия дистрибутива в os-release
+        """cat > /etc/os-release << 'EOF'
+NAME="Sosaltix Linux"
+PRETTY_NAME="Sosaltix Linux"
+ID=sosaltix
+ID_LIKE=arch
+BUILD_ID=rolling
+ANSI_COLOR="38;2;23;147;209"
+HOME_URL="https://sosaltix.org"
+DOCUMENTATION_URL="https://wiki.sosaltix.org"
+SUPPORT_URL="https://support.sosaltix.org"
+BUG_REPORT_URL="https://bugs.sosaltix.org"
+LOGO=sosaltix
+EOF""",
+        
+        # Изменение issue (приветственное сообщение при входе)
+        """cat > /etc/issue << 'EOF'
+Sosaltix Linux \r (\l)
+
+EOF""",
+        
+        # Изменение motd (сообщение дня)
+        """cat > /etc/motd << 'EOF'
+Welcome to Sosaltix Linux!
+Documentation: https://wiki.sosaltix.org
+
+EOF""",
+        
+        # Настройка sddm для отображения Sosaltix
+        f"""cat > /etc/sddm.conf << 'EOF'
+[Theme]
+Current=breeze
+
+[General]
+HaltCommand=/usr/bin/systemctl poweroff
+RebootCommand=/usr/bin/systemctl reboot
+
+[Users]
+DefaultUser={username}
+EOF""",
+        
+        # Создание директории для лого
+        "mkdir -p /usr/share/sosaltix",
+        
+        # Настройка fastfetch (если используется)
+        f"""mkdir -p /home/{username}/.config/fastfetch
+cat > /home/{username}/.config/fastfetch/config.jsonc << 'EOF'
+{{
+  "logo": {{
+    "source": "sosaltix",
+    "type": "builtin"
+  }},
+  "display": {{
+    "separator": "➜",
+    "color": {{
+      "keys": "cyan",
+      "title": "blue"
+    }}
+  }}
+}}
+EOF
+chown -R {username}:{username} /home/{username}/.config""",
+        
+        # Настройка bashrc с приветствием
+        f"""echo '
+# Sosaltix welcome message
+if [ -f /etc/motd ]; then
+    cat /etc/motd
+fi
+
+# Custom prompt
+PS1="\[\033[01;34m\][Sosaltix\[\033[01;37m\] \u\[\033[01;34m\] \w\[\033[01;34m\]]\[\033[00m\] \$ "
+' >> /home/{username}/.bashrc
+chown {username}:{username} /home/{username}/.bashrc""",
+        
+        # Настройка pacman для отображения Sosaltix
+        """sed -i 's/Arch Linux/Sosaltix Linux/g' /etc/pacman.conf
+sed -i 's/Arch/Sosaltix/g' /etc/pacman.conf""",
+        
+        # Настройка grub для отображения Sosaltix
+        """sed -i 's/Arch Linux/Sosaltix Linux/g' /boot/grub/grub.cfg""",
+    ]
+    
+    # Добавляем команды ребрендинга
+    chroot_commands.extend(branding_commands)
+    
+    # Включаем сервисы
     for service in services:
         chroot_commands.append(f"systemctl enable {service}")
     
+    # Выполняем все команды
     for cmd in chroot_commands:
-        print(f"Executing: {cmd}")
+        print(f"Executing: {cmd[:50]}..." if len(cmd) > 50 else f"Executing: {cmd}")
         run(f'arch-chroot /mnt /bin/bash -c "{cmd}"')
 
-    print(f"\n[COMPLETE] Sosaltix installed. User: {username}")
-    print("You can now reboot into your new system.")
+    # Создаем файл с информацией о системе
+    with open("/mnt/etc/sosaltix-release", "w") as f:
+        f.write("Sosaltix Linux release 2024 (Rolling)\n")
+
+    print(f"\n=== Sosaltix Linux successfully installed! ===")
+    print(f"User: {username}")
+    print(f"Hostname: Sosaltix")
+    print("\nSystem has been fully rebranded from Arch to Sosaltix.")
     print("\nTo reboot, run: umount -R /mnt && reboot")
 
-    print(f"\n[COMPLETE] Sosaltix installed. User: {username}")
-    print("You can now reboot into your new system.")
-
-
-
 if __name__ == "__main__":
-    if os.getuid() != 0: sys.exit("Need root!")
+    if os.getuid() != 0:
+        sys.exit("Need root!")
     install()
