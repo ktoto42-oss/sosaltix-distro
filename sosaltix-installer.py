@@ -43,7 +43,7 @@ def run(command, ignore_errors=False):
         return False
 
 def install_with_retry(packages, target_dir):
-    max_retries = 3
+    max_retries = 100
     retry_count = 0
     all_pkgs = " ".join(packages)
     
