@@ -79,7 +79,7 @@ chown {username}:{username} /home/{username}/.bashrc'''
         run(f'arch-chroot /mnt /bin/bash -c "{cmd}"')
 
     with open("/mnt/etc/sosaltix-release", "w") as f:
-        f.write("Sosaltix Linux release 2024 (Rolling)\n")
+        f.write("Sosaltix Linux release 2026 (Rolling)\n")
 
     print(f"\n=== Sosaltix Linux successfully installed! ===")
     print(f"User: {username}")
