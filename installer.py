@@ -6,6 +6,7 @@ import subprocess
 base_packages = [
     "base",
     "base-devel",
+    "linux",
     "linux-firmware",
     "linux-headers",
     "networkmanager",
@@ -62,7 +63,7 @@ def install():
     run(f"mount {p1} /mnt/boot")
 
     print("=== Installation packages === ")
-    all_pkgs = " ".join(BASE_PACKAGES + GUI_PACKAGES)
+    all_pkgs = " ".join(base_packages + kde_packages)
     run(f"pacstrap -K /mnt {all_pkgs}")
     run("genfstab -U /mnt >> /mnt/etc/fstab")
 
