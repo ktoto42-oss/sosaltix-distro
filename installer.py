@@ -64,7 +64,20 @@ def install():
 
     print("=== Installation packages === ")
     all_pkgs = " ".join(base_packages + kde_packages)
-    run(f"pacstrap -K /mnt {all_pkgs}")
+    while True:
+        success = run(f"pacstrap -K /mnt {all_pkgs}")
+        
+        if success:
+            print("Packages installed successfully!")
+            break
+        else:
+            print("\n[!] Package installation failed.")
+            choice = input("Press 'r' to retry or any other key to abort: ").lower()
+            if choice != 'r':
+                print("Installation aborted by user.")
+                run("umount -R /mnt", ignore_errors=True)
+                sys.exit(1)
+            print("\nRetrying installation...\n")
     run("genfstab -U /mnt >> /mnt/etc/fstab")
 
     print("=== Final setup ===")
