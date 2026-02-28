@@ -36,7 +36,8 @@ def run(command):
         subprocess.check_call(command, shell=True)
     except subprocess.CalledProcessError:
         print(f"\n[!] Error: {command}")
-        sys.exit(1)
+        return False
+    return True
 
 def install():
     print("=== Installation Sosaltix Linux ===")
