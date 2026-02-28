@@ -93,7 +93,7 @@ def install():
 
     echo "root:{root_password}" | chpasswd
     useradd -m -G wheel -s /bin/bash {username}
-    echo "{username}:{password}" | chpasswd
+    echo "{username}:{user_password}" | chpasswd
     echo "%wheel ALL=(ALL) ALL" > /etc/sudoers.d/wheel
 
     sed -i 's/Arch Linux/Sosaltix Linux/g; s/ID=arch/ID=sosaltix' /etc/os-release
