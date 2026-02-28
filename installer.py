@@ -60,8 +60,8 @@ def install():
     run(f"mkfs.ext4 -F {p2} > /dev/null")
 
     run(f"mount {p2} /mnt")
-    os.makedirs("/mnt/boot", exist_ok=True)
-    run(f"mount {p1} /mnt/boot")
+    os.makedirs("/mnt/boot/efi", exist_ok=True)
+    run(f"mount {p1} /mnt/boot/efi")
 
     print("=== Installation packages === ")
     all_pkgs = " ".join(base_packages + kde_packages)
