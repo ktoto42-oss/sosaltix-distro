@@ -18,7 +18,7 @@ base_packages = [
 ]
 
 kde_packages = [
-    "plasma-login-manager",
+    "sddm",
     "plasma-desktop",
     "plasma-pa",
     "plasma-nm",
@@ -28,7 +28,7 @@ kde_packages = [
     "firefox"
 ]
 
-services = ["NetworkManager", "plasma-login-manager"]
+services = ["NetworkManager", "sddm"]
 
 def run(command):
     try:
@@ -39,6 +39,7 @@ def run(command):
 
 def install():
     print("=== Installation Sosaltix Linux ===")
+    run(f"lsblk")
     drive = input("Installation disk (example /dev/sda): ")
     username = input("User name: ")
     user_password = getpass.getpass("User password: ")
@@ -80,7 +81,11 @@ def install():
     echo "{username}:{password}" | chpasswd
     echo "%wheel ALL=(ALL) ALL" > /etc/sudoers.d/wheel
 
+    sed -i 's/Arch Linux/Sosaltix Linux/g; s/ID=arch/ID=sosaltix' /etc/os-release
+    echo "Sosaltix" > /etc/arch-release
+
     grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=Sosaltix
+    sed -i 's/Arch/Sosaltix/g' /etc/default/grub
     grub-mkconfig -o /boot/grub/grub.cfg
     {enable_services}
     """
